@@ -1,4 +1,4 @@
-package pipeline
+package garoa
 
 import (
 	"strconv"
@@ -37,7 +37,7 @@ type BasePipelineSuite struct {
 
 	mockFunctions *MockedTestFunctionsContainer
 
-	sut *Builder
+	sut *PipelineBuilder
 
 	result      *Pipeline
 	resultError error
@@ -52,7 +52,7 @@ type MissingStepsBuildingPipelineShouldReturnError struct {
 
 func (s *MissingStepsBuildingPipelineShouldReturnError) SetupTest() {
 	s.mockFunctions = new(MockedTestFunctionsContainer)
-	s.sut = new(Builder)
+	s.sut = new(PipelineBuilder)
 	s.result, s.resultError = s.sut.
 		ConsumingFrom(mockedInput).
 		ThenRunning(s.mockFunctions.mockFunctionA, expectedParallelismDegree).
@@ -85,7 +85,7 @@ func (s *BuildingTwiceShouldGenerateDifferentPipelines) SetupTest() {
 	s.mockFunctions.On("mockFunctionA", MockEmptyObject{}).Return(MockEmptyObject{})
 	s.mockFunctions.On("mockFunctionB", MockEmptyObject{}).Return(MockEmptyObject{})
 
-	s.sut = new(Builder)
+	s.sut = new(PipelineBuilder)
 
 	s.result, s.resultError = s.sut.CreateNew().
 		ConsumingFrom(mockedInput).
@@ -113,7 +113,7 @@ type BuildingEmptyPipelineShouldReturnError struct {
 }
 
 func (s *BuildingEmptyPipelineShouldReturnError) SetupTest() {
-	s.sut = new(Builder)
+	s.sut = new(PipelineBuilder)
 	s.result, s.resultError = s.sut.CreateNew().ConsumingFrom(mockedInput).OutputtingTo(mockedOutput).Build()
 }
 
@@ -137,7 +137,7 @@ func (s *BuildingPipelineWithoutInputShouldReturnError) SetupTest() {
 	s.mockFunctions = new(MockedTestFunctionsContainer)
 	s.mockFunctions.On("mockFunctionA", MockEmptyObject{}).Return(MockEmptyObject{})
 
-	s.sut = new(Builder)
+	s.sut = new(PipelineBuilder)
 	s.result, s.resultError = s.sut.CreateNew().ThenRunning(s.mockFunctions.mockFunctionA, expectedParallelismDegree).Build()
 }
 
@@ -161,7 +161,7 @@ func (s *BuildingPipelineWithoutOutputShouldReturnError) SetupTest() {
 	s.mockFunctions = new(MockedTestFunctionsContainer)
 	s.mockFunctions.On("mockFunctionA", MockEmptyObject{}).Return(MockEmptyObject{})
 
-	s.sut = new(Builder)
+	s.sut = new(PipelineBuilder)
 	s.result, s.resultError = s.sut.CreateNew().ThenRunning(s.mockFunctions.mockFunctionA, expectedParallelismDegree).Build()
 }
 
@@ -187,7 +187,7 @@ func (s *BuildingNonEmptyPipeline) SetupTest() {
 	s.mockFunctions.On("mockFunctionA", MockEmptyObject{}).Return(MockEmptyObject{})
 	s.mockFunctions.On("mockFunctionB", MockEmptyObject{}).Return(MockEmptyObject{})
 
-	s.sut = new(Builder)
+	s.sut = new(PipelineBuilder)
 
 	s.result, s.resultError = s.sut.CreateNew().
 		ConsumingFrom(mockedInput).

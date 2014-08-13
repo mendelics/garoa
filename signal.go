@@ -1,3 +1,3 @@
-package pipeline
+package garoa
 
 type signal struct{}

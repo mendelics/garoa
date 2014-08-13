@@ -1,4 +1,4 @@
-package pipeline
+package garoa
 
 import "errors"
 
@@ -8,21 +8,21 @@ func constructPipeline() *Pipeline {
 	return newPipeline
 }
 
-// Builder contains an unfinished pipeline.
+// PipelineBuilder contains an unfinished pipeline.
 //
-// Builder methods return a pointer in order to allow chaining
-type Builder struct {
+// PipelineBuilder methods return a pointer in order to allow chaining
+type PipelineBuilder struct {
 	buildingPipeline *Pipeline
 }
 
-// CreateNew starts the construction of a new Pipeline through a Builder
-func (builder *Builder) CreateNew() *Builder {
+// CreateNew starts the construction of a new Pipeline through a PipelineBuilder
+func (builder *PipelineBuilder) CreateNew() *PipelineBuilder {
 	builder.buildingPipeline = constructPipeline()
 	return builder
 }
 
 // ConsumingFrom specifies the initial channel that will be used for the Pipeline
-func (builder *Builder) ConsumingFrom(input chan interface{}) *Builder {
+func (builder *PipelineBuilder) ConsumingFrom(input chan interface{}) *PipelineBuilder {
 	if builder.buildingPipeline != nil {
 		builder.buildingPipeline.input = input
 	}
@@ -35,7 +35,7 @@ type pipelineFunc func(interface{}) (interface{}, error)
 // degree specifies how many goroutines can be started to run the action.
 //
 // Input/ouput among the actions is determined by the order they are specified on the builder.
-func (builder *Builder) ThenRunning(action pipelineFunc, parallelismDegree int) *Builder {
+func (builder *PipelineBuilder) ThenRunning(action pipelineFunc, parallelismDegree int) *PipelineBuilder {
 
 	if builder.buildingPipeline != nil {
 
@@ -58,7 +58,7 @@ func (builder *Builder) ThenRunning(action pipelineFunc, parallelismDegree int) 
 }
 
 // OutputtingTo specifies the last channel which will receive the output from the Pipeline, after all the actions are applied.
-func (builder *Builder) OutputtingTo(output chan interface{}) *Builder {
+func (builder *PipelineBuilder) OutputtingTo(output chan interface{}) *PipelineBuilder {
 	if builder.buildingPipeline != nil {
 		builder.buildingPipeline.output = output
 		if len(builder.buildingPipeline.steps) > 0 {
@@ -70,7 +70,7 @@ func (builder *Builder) OutputtingTo(output chan interface{}) *Builder {
 
 // Build verifies the construction of the Pipeline is complete and no pieces are missing and returns the finished Pipeline
 // in a state where it can be run.
-func (builder *Builder) Build() (*Pipeline, error) {
+func (builder *PipelineBuilder) Build() (*Pipeline, error) {
 
 	if builder.buildingPipeline == nil {
 		return nil, errors.New("should call CreateNew() before build")
