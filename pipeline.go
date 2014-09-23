@@ -6,7 +6,7 @@ type step struct {
 	degree int
 	input  chan interface{}
 	output chan interface{}
-	action pipelineFunc
+	action PipelineFunc
 	done   chan signal
 }
 

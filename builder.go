@@ -29,13 +29,13 @@ func (builder *PipelineBuilder) ConsumingFrom(input chan interface{}) *PipelineB
 	return builder
 }
 
-type pipelineFunc func(interface{}) (interface{}, error)
+type PipelineFunc func(interface{}) (interface{}, error)
 
 // ThenRunning specifies a new action to be run under the pipeline, with its corresponding parallelism degree. This
 // degree specifies how many goroutines can be started to run the action.
 //
 // Input/ouput among the actions is determined by the order they are specified on the builder.
-func (builder *PipelineBuilder) ThenRunning(action pipelineFunc, parallelismDegree int) *PipelineBuilder {
+func (builder *PipelineBuilder) ThenRunning(action PipelineFunc, parallelismDegree int) *PipelineBuilder {
 
 	if builder.buildingPipeline != nil {
 
