@@ -65,7 +65,7 @@ func (pipeline Pipeline) runStep(step step) {
 				v, err := step.action(value)
 				if err == nil && step.output != nil {
 					step.output <- v
-				} else {
+				} else if err != nil {
 					log.Printf("Error: '%v' applying action to %v\n", err, value)
 				}
 			}
