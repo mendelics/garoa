@@ -268,6 +268,39 @@ func (s *BuildingNonEmptyPipeline) TestPipelineStepsShouldBeCorrectlyChained() {
 	}
 }
 
+type BuildingDiscardOutputPipeline struct {
+	BasePipelineSuite
+}
+
+func (s *BuildingDiscardOutputPipeline) SetupTest() {
+
+	s.mockFunctions = new(MockedTestFunctionsContainer)
+
+	s.mockFunctions.On("mockFunctionA", MockEmptyObject{}).Return(MockEmptyObject{})
+	s.mockFunctions.On("mockFunctionB", MockEmptyObject{}).Return(MockEmptyObject{})
+
+	s.sut = new(PipelineBuilder)
+
+	s.result, s.resultError = s.sut.CreateNew().
+		ConsumingFrom(mockedInput).
+		ThenRunning(s.mockFunctions.mockFunctionB, 7).
+		ThenRunning(s.mockFunctions.mockFunctionA, 13).
+		DiscardOutput().
+		Build()
+}
+
+func (s *BuildingDiscardOutputPipeline) TestBuildShouldReturnAValidPipeline() {
+	assert.NotNil(s.T(), s.result, "Returning Pipeline should not be null")
+}
+
+func (s *BuildingDiscardOutputPipeline) TestReturnsNoError() {
+	assert.NoError(s.T(), s.resultError)
+}
+
+func (s *BuildingDiscardOutputPipeline) TestPipelineOutputShouldBeNil() {
+	assert.Nil(s.T(), s.result.output, "Output should be Nil")
+}
+
 /*
 	Runs all the test suites
 */
@@ -279,4 +312,5 @@ func TestRunAllSuites(t *testing.T) {
 	suite.Run(t, new(BuildingPipelineWithoutOutputShouldReturnError))
 	suite.Run(t, new(BuildingNonEmptyPipeline))
 	suite.Run(t, new(BuildingTwiceShouldGenerateDifferentPipelines))
+	suite.Run(t, new(BuildingDiscardOutputPipeline))
 }

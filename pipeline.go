@@ -14,6 +14,8 @@ type step struct {
 // interconnecting the steps, as long as a step doesn't return an error while processing a value.
 //
 // Errors are logged and the value is dropped from the pipeline, not being passed to the following step.
+//
+// When the output from the last step is discarded, the `output` channel is nil.
 type Pipeline struct {
 	input     chan interface{}
 	output    chan interface{}
@@ -61,7 +63,7 @@ func (pipeline Pipeline) runStep(step step) {
 		go func() {
 			for value := range step.input {
 				v, err := step.action(value)
-				if err == nil {
+				if err == nil && step.output != nil {
 					step.output <- v
 				} else {
 					log.Printf("Error: '%v' applying action to %v\n", err, value)
@@ -76,7 +78,9 @@ func (pipeline Pipeline) runStep(step step) {
 		for _ = range step.done {
 			acked++
 			if acked == step.degree {
-				close(step.output)
+				if step.output != nil {
+					close(step.output)
+				}
 				close(step.done)
 				pipeline.stepsDone <- signal{}
 			}

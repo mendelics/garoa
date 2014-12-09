@@ -68,6 +68,17 @@ func (builder *PipelineBuilder) OutputtingTo(output chan interface{}) *PipelineB
 	return builder
 }
 
+// DiscardOutput specifies the output from the last step will not be used and the corresponding channel should be exhausted.
+func (builder *PipelineBuilder) DiscardOutput() *PipelineBuilder {
+	if builder.buildingPipeline != nil {
+		builder.buildingPipeline.output = nil
+		if len(builder.buildingPipeline.steps) > 0 {
+			builder.buildingPipeline.steps[len(builder.buildingPipeline.steps)-1].output = nil
+		}
+	}
+	return builder
+}
+
 // Build verifies the construction of the Pipeline is complete and no pieces are missing and returns the finished Pipeline
 // in a state where it can be run.
 func (builder *PipelineBuilder) Build() (*Pipeline, error) {
@@ -78,10 +89,6 @@ func (builder *PipelineBuilder) Build() (*Pipeline, error) {
 
 	if builder.buildingPipeline.input == nil {
 		return nil, errors.New("should call ConsumingFrom() passing an already initialized channel before callig Build()")
-	}
-
-	if builder.buildingPipeline.output == nil {
-		return nil, errors.New("should call OutputtingTo() passing an already initialized channel before callig Build()")
 	}
 
 	if len(builder.buildingPipeline.steps) == 0 {
