@@ -63,10 +63,12 @@ func (pipeline Pipeline) runStep(step step) {
 		go func() {
 			for value := range step.input {
 				v, err := step.action(value)
-				if err == nil && step.output != nil {
+				if err == nil && step.output != nil && v != nil { // there are no errors, the return value is non-nil and there is a valid output channel
 					step.output <- v
 				} else if err != nil {
 					log.Printf("Error: '%v' applying action to %v\n", err, value)
+				} else {
+					// silently discard, either there is no output channel or a nil value has been received from the action
 				}
 			}
 			step.done <- signal{}
