@@ -3,11 +3,12 @@ package garoa
 import "log"
 
 type step struct {
-	degree int
-	input  chan interface{}
-	output chan interface{}
-	action PipelineFunc
-	done   chan signal
+	degree    int
+	input     chan interface{}
+	output    chan interface{}
+	interrupt chan signal
+	action    PipelineFunc
+	done      chan signal
 }
 
 // Pipeline represents a series of steps, interconnected by channels. Values will be passed through channels
@@ -22,6 +23,7 @@ type Pipeline struct {
 	steps     []step
 	done      chan signal
 	stepsDone chan signal
+	interrupt chan signal
 }
 
 // Run starts the pipeline. All the steps start communicating and the values from the input flow through
@@ -31,19 +33,28 @@ type Pipeline struct {
 // and all steps have finished processing. Notice it is still possible for the final output channel
 // to be fully filled which will cause the Pipeline to block. Values are not discarded after the last step
 // runs, they must be treated.
-func (pipeline Pipeline) Run() chan signal {
+func (pipeline *Pipeline) Run() chan signal {
 	numSteps := len(pipeline.steps)
 
 	pipeline.done = make(chan signal)
 	pipeline.stepsDone = make(chan signal, numSteps)
+	pipeline.interrupt = make(chan signal)
 
 	for i := 0; i < numSteps; i++ {
+		pipeline.steps[i].interrupt = make(chan signal)
 		pipeline.runStep(pipeline.steps[i])
 	}
 
 	go func() {
+		<-pipeline.interrupt            // wait for an interrupt to the whole pipeline
+		for i := 0; i < numSteps; i++ { // if it comes, tell all steps to stop
+			pipeline.steps[i].interrupt <- signal{}
+		}
+	}()
+
+	go func() {
 		acked := 0
-		for _ = range pipeline.stepsDone {
+		for _ = range pipeline.stepsDone { // wait for the done signal from each step, should come even on interrupt
 			acked++
 			if acked == numSteps {
 				close(pipeline.stepsDone)
@@ -55,20 +66,31 @@ func (pipeline Pipeline) Run() chan signal {
 	return pipeline.done
 }
 
-func (pipeline Pipeline) runStep(step step) {
+func (pipeline *Pipeline) Interrupt() {
+	pipeline.interrupt <- signal{}
+}
+
+func (pipeline *Pipeline) runStep(step step) {
 
 	step.done = make(chan signal, step.degree)
 
 	for i := 0; i < step.degree; i++ {
 		go func() {
-			for value := range step.input {
-				v, err := step.action(value)
-				if err == nil && step.output != nil && v != nil { // there are no errors, the return value is non-nil and there is a valid output channel
-					step.output <- v
-				} else if err != nil {
-					log.Printf("Error: '%v' applying action to %v\n", err, value)
-				} else {
-					// silently discard, either there is no output channel or a nil value has been received from the action
+		loop:
+			for {
+				select {
+				case value := <-step.input:
+					v, err := step.action(value)
+					if err == nil && step.output != nil && v != nil { // there are no errors, the return value is non-nil and there is a valid output channel
+						step.output <- v
+					} else if err != nil {
+						log.Printf("Error: '%v' applying action to %v\n", err, value)
+					} else {
+						// silently discard, either there is no output channel or a nil value has been received from the action
+					}
+				case <-step.interrupt:
+					// stop consuming step.input channel, break out of the loop
+					break loop
 				}
 			}
 			step.done <- signal{}
