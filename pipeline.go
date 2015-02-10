@@ -79,7 +79,10 @@ func (pipeline *Pipeline) runStep(step step) {
 		loop:
 			for {
 				select {
-				case value := <-step.input:
+				case value, ok := <-step.input:
+					if !ok { // channel closed
+						break loop
+					}
 					v, err := step.action(value)
 					if err == nil && step.output != nil && v != nil { // there are no errors, the return value is non-nil and there is a valid output channel
 						step.output <- v
