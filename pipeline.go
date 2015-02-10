@@ -48,7 +48,10 @@ func (pipeline *Pipeline) Run() chan signal {
 	go func() {
 		<-pipeline.interrupt            // wait for an interrupt to the whole pipeline
 		for i := 0; i < numSteps; i++ { // if it comes, tell all steps to stop
-			pipeline.steps[i].interrupt <- signal{}
+			step := pipeline.steps[i]
+			for j := 0; j < step.degree; j++ {
+				pipeline.steps[i].interrupt <- signal{}
+			}
 		}
 	}()
 
@@ -79,6 +82,9 @@ func (pipeline *Pipeline) runStep(step step) {
 		loop:
 			for {
 				select {
+				case <-step.interrupt:
+					// stop consuming step.input channel, break out of the loop
+					break loop
 				case value, ok := <-step.input:
 					if !ok { // channel closed
 						break loop
@@ -91,9 +97,6 @@ func (pipeline *Pipeline) runStep(step step) {
 					} else {
 						// silently discard, either there is no output channel or a nil value has been received from the action
 					}
-				case <-step.interrupt:
-					// stop consuming step.input channel, break out of the loop
-					break loop
 				}
 			}
 			step.done <- signal{}

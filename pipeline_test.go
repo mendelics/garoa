@@ -31,7 +31,7 @@ func (s *PipelineInterruptSuite) SetupTest() {
 
 	s.pipe, s.buildError = s.builder.CreateNew().
 		ConsumingFrom(mockedInput).
-		ThenRunning(runForever, 1).
+		ThenRunning(runForever, 2).
 		DiscardOutput().
 		Build()
 }
