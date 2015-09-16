@@ -1,13 +1,15 @@
 package garoa
 
-import "log"
+import (
+	"log"
+	"sync"
+)
 
 type step struct {
 	degree int
 	input  chan interface{}
 	output chan interface{}
 	action PipelineFunc
-	done   chan signal
 }
 
 // Pipeline represents a series of steps, interconnected by channels. Values will be passed through channels
@@ -31,33 +33,29 @@ type Pipeline struct {
 // and all steps have finished processing. Notice it is still possible for the final output channel
 // to be fully filled which will cause the Pipeline to block. Values are not discarded after the last step
 // runs, they must be treated.
-func (pipeline Pipeline) Run() chan signal {
+func (pipeline Pipeline) Run() <-chan signal {
 	numSteps := len(pipeline.steps)
 
-	pipeline.done = make(chan signal)
-	pipeline.stepsDone = make(chan signal, numSteps)
+	wg := sync.WaitGroup{}
+	wg.Add(numSteps)
 
 	for i := 0; i < numSteps; i++ {
-		pipeline.runStep(pipeline.steps[i])
+		pipeline.runStep(pipeline.steps[i], &wg)
 	}
 
+	pipeline.done = make(chan signal)
+
 	go func() {
-		acked := 0
-		for _ = range pipeline.stepsDone {
-			acked++
-			if acked == numSteps {
-				close(pipeline.stepsDone)
-				pipeline.done <- signal{}
-			}
-		}
+		wg.Wait()
+		pipeline.done <- signal{}
 	}()
 
 	return pipeline.done
 }
 
-func (pipeline Pipeline) runStep(step step) {
-
-	step.done = make(chan signal, step.degree)
+func (pipeline Pipeline) runStep(step step, externalWg *sync.WaitGroup) {
+	internalWg := sync.WaitGroup{}
+	internalWg.Add(step.degree)
 
 	for i := 0; i < step.degree; i++ {
 		go func() {
@@ -68,24 +66,18 @@ func (pipeline Pipeline) runStep(step step) {
 				} else if err != nil {
 					log.Printf("Error: '%v' applying action to %v\n", err, value)
 				} else {
-					// silently discard, either there is no output channel or a nil value has been received from the action
+					// not an error, but either there's no output channel (discard) or there's no return value to send into it (skip)
 				}
 			}
-			step.done <- signal{}
+			internalWg.Done()
 		}()
 	}
 
 	go func() {
-		acked := 0
-		for _ = range step.done {
-			acked++
-			if acked == step.degree {
-				if step.output != nil {
-					close(step.output)
-				}
-				close(step.done)
-				pipeline.stepsDone <- signal{}
-			}
+		internalWg.Wait()
+		if step.output != nil {
+			close(step.output)
 		}
+		externalWg.Done()
 	}()
 }
